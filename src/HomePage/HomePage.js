@@ -1,161 +1,152 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Chart } from 'chart.js/auto';
 import * as d3 from 'd3';
-
-// Data structure for Chart.js
-var dataSource = {
-    datasets: [{
-        data: [],
-        backgroundColor: [
-            '#ffcd56',
-            '#ff6384',
-            '#36a2eb',
-            '#fd6b19',
-            '#FF5733',
-            '#28C13E',
-            '#283EA6'
-        ]
-    }],
-    labels: []
-};
-
-// Function to create Chart.js pie chart
-function createChart() {
-    var canvas = document.getElementById('myChart');
-
-    if (!canvas) {
-        console.error("Canvas element for Chart.js not found!");
-        return;
-    }
-
-    var ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error("Failed to get 2D context for Chart.js");
-        return;
-    }
-
-    new Chart(ctx, {
-        type: 'pie',
-        data: dataSource
-    });
-
-    console.log("Chart.js initialized successfully!");
-}
-
-// Function to create D3.js chart
-function createD3Chart(budgetData) {
-    console.log("Creating D3 Chart with Data:", budgetData);
-
-    var chartContainer = d3.select("#d3Graph");
-
-    if (chartContainer.empty()) {
-        console.error("D3 container not found!");
-        return;
-    }
-
-    chartContainer.selectAll("*").remove(); // Clear previous charts
-
-    var width = 600, height = 400;
-    var svg = chartContainer.append("svg")
-        .attr("width", width)
-        .attr("height", height);
-
-    var colorScale = d3.scaleOrdinal(d3.schemeCategory10);
-
-    var pie = d3.pie().value(d => d.budget);
-    var arc = d3.arc().innerRadius(50).outerRadius(150);
-
-    var arcs = svg.append("g")
-        .attr("transform", `translate(${width / 2}, ${height / 2})`)
-        .selectAll("path")
-        .data(pie(budgetData))
-        .enter()
-        .append("path")
-        .attr("d", arc)
-        .attr("fill", d => colorScale(d.data.title));
-
-    console.log("D3.js chart initialized successfully!");
-}
-
-// Function to fetch budget data using Axios
-function getBudget() {
-  //  axios.get('http://localhost:3000/Readdata')//
-  axios.get('/Readdata.json')
-        .then(function (res) {
-            console.log("API Response:", res.data);
-
-            if (res.data && res.data.myBudget) {
-                console.log("Budget Data:", res.data.myBudget);
-
-                for (var i = 0; i < res.data.myBudget.length; i++) {
-                    dataSource.datasets[0].data[i] = res.data.myBudget[i].budget;
-                    dataSource.labels[i] = res.data.myBudget[i].title;
-                }
-
-                createChart();  // Initialize Chart.js pie chart
-                createD3Chart(res.data.myBudget); // Initialize D3.js chart
-            } else {
-                console.error("Invalid or null response data:", res.data);
-            }
-        })
-        .catch(function (error) {
-            console.error("Error fetching budget data:", error);
-        });
-}
+import { Chart as ChartJS } from 'chart.js/auto';
 
 function HomePage() {
-  
+    const [budgetData, setBudgetData] = useState([]);
+
     useEffect(() => {
-        getBudget();
+        const fetchData = async () => {
+            try {
+                const response = await axios.get('http://localhost:3000/Readdata');
+                setBudgetData(response.data.myBudget);
+                createCharts(response.data.myBudget);
+            } catch (error) {
+                console.error('Error fetching budget data:', error);
+            }
+        };
+        fetchData();
     }, []);
 
+    const createCharts = (data) => {
+        // Create D3.js chart
+        const width = 400;
+        const height = 400;
+        const radius = Math.min(width, height) / 2;
+
+        d3.select('#d3Chart').selectAll('*').remove();
+        const svg = d3.select('#d3Chart')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .append('g')
+            .attr('transform', `translate(${width / 2},${height / 2})`);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
+        const pie = d3.pie().value(d => d.budget);
+        const arc = d3.arc().innerRadius(100).outerRadius(radius);
+
+        const arcs = svg.selectAll('arc')
+            .data(pie(data))
+            .enter()
+            .append('g');
+
+        arcs.append('path')
+            .attr('d', arc)
+            .attr('fill', (d, i) => color(i));
+
+        // Add labels
+        arcs.append('text')
+            .attr('transform', d => `translate(${arc.centroid(d)})`)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .text(d => d.data.title);
+
+        // Create Chart.js chart
+        const ctx = document.getElementById('myChart');
+        if (ctx) {
+            const existingChart = ChartJS.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            new ChartJS(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.map(item => item.title),
+                    datasets: [{
+                        data: data.map(item => item.budget),
+                        backgroundColor: data.map((_, index) => color(index))
+                    }]
+                }
+            });
+        }
+    };
+
     return (
-        <main className="center" id="main">
-            <section className="page-area">
-                <article>
-                    <h2>Stay on Track</h2>
+        <div className="container center">
+
+            <div className="page-area">
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "aqua" }}>
+                    <h1>Stay on track</h1>
                     <p>
                         Do you know where you are spending your money? If you really stop to track it down,
                         you would get surprised! Proper budget management depends on real data... and this
                         app will help you with that!
                     </p>
-                </article>
+                </div>
 
-                <article>
-                    <h2>Alerts</h2>
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "aqua" }}>
+                    <h1>Alerts</h1>
                     <p>
                         What if your clothing budget ended? You will get an alert. The goal is to never go over the budget.
                     </p>
-                </article>
+                </div>
 
-                <article>
-                    <h2>Results</h2>
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "cornsilk" }}>
+                    <h1>Results</h1>
                     <p>
                         People who stick to a financial plan, budgeting every expense, get out of debt faster!
-                        Also, they to live happier lives... since they spend without guilt or fear... 
+                        Also, they live happier lives... since they spend without guilt or fear... 
                         because they know it is all good and accounted for.
                     </p>
-                </article>
+                </div>
 
-                <article>
-                    <h2>Free</h2>
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "cornsilk" }}>
+                    <h1>Free</h1>
                     <p>
-                        This app is free! And you are the only one holding your data!
+                        This app is free!!! And you are the only one holding your data!
                     </p>
-                </article>
+                </div>
 
-                <section>
-                    <h2>Chart</h2>
-                    <canvas id="myChart" width="700" height="400"></canvas>
-                </section>
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "aqua" }}>
+                    <h1>Stay on track</h1>
+                    <p>
+                        Do you know where you are spending your money? If you really stop to track it down,
+                        you would get surprised! Proper budget management depends on real data... and this
+                        app will help you with that!
+                    </p>
+                </div>
 
-                <section>
-                    <h2>Budget Allocation (D3.js Graph)</h2>
-                    <div id="d3Graph"></div>
-                </section>
-            </section>
-        </main>
+                {/* This is an A11y Change - Background color */}
+                <div className="text-box" style={{ backgroundColor: "aqua" }}>
+                    <h1>Alerts</h1>
+                    <p>
+                        What if your clothing budget ended? You will get an alert. The goal is to never go over the budget.
+                    </p>
+                </div>
+
+                {/* D3JS Chart */}
+                <div className="text-box">
+                    <h1>D3JS Chart</h1>
+                    <div id="d3Chart"></div>
+                </div>
+
+                {/* Chart.js Canvas */}
+                <div className="text-box">
+                    <h1>Chart.js Chart</h1>
+                    <div>
+                        <canvas id="myChart" width="400" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
