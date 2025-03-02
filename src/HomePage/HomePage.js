@@ -9,7 +9,7 @@ function HomePage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axios.get('http://localhost:3000/Readdata');
+                const response = await axios.get('http://localhost:3000/budget');
                 setBudgetData(response.data.myBudget);
                 createCharts(response.data.myBudget);
             } catch (error) {
